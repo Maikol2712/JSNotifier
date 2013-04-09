@@ -18,6 +18,20 @@
 
 #import <QuartzCore/QuartzCore.h>
 
+typedef enum {
+	JSNotifierShowTypeSuccess = 0,
+	JSNotifierShowTypeError = 1
+} JSNotifierShowType;
+
+typedef enum {
+	JSNotifierShowModeSlide = 0,
+	JSNotifierShowModeFade = 1
+} JSNotifierShowMode;
+
+typedef enum {
+	JSNotifierPositionTop = 0,
+	JSNotifierPositionBottom = 1
+} JSNotifierPosition;
 
 @interface JSNotifier : UIView{
     
@@ -25,21 +39,13 @@
     UILabel *_txtLabel;
 }
 
++ (void)showSuccessWithTitle:(NSString*) title mode:(JSNotifierShowMode) mode position:(JSNotifierPosition) position forTime:(float) time;
++ (void)showErrorWithTitle:(NSString*) title mode:(JSNotifierShowMode) mode position:(JSNotifierPosition) position forTime:(float) time;
 
-- (id)initWithTitle:(NSString *)title;
-
-- (void)setAccessoryView:(UIView *)view animated:(BOOL)animated;
-
-- (void)setTitle:(id)title animated:(BOOL)animated;
-
-- (void)show;
-- (void)showFor:(float)time;
-
-- (void)hide;
-- (void)hideIn:(float)seconds;
-
-@property (nonatomic, strong) UIView *accessoryView;
 @property (nonatomic, strong) NSString *title;
+@property (nonatomic, unsafe_unretained) JSNotifierPosition position;
+@property (nonatomic, unsafe_unretained) JSNotifierShowMode mode;
+@property (nonatomic, strong) UIImageView* accessoryView;
 
 @end
 

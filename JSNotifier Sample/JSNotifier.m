@@ -17,55 +17,86 @@ limitations under the License.
 #import "JSNotifier.h"
 #define _displaytime 4.f
 
-@implementation JSNotifier
-@synthesize accessoryView, title = _title;
-
-
-- (id)initWithTitle:(NSString *)title{
-    
-    if (self = [super initWithFrame:CGRectMake(0, [UIScreen mainScreen].bounds.size.height, [UIScreen mainScreen].bounds.size.width, 40)]){
-    
-        self.backgroundColor = [UIColor clearColor];
-        
-        _txtLabel = [[UILabel alloc]initWithFrame:CGRectMake(8, 12, self.frame.size.width - 0, 20)];
-        [_txtLabel setFont:[UIFont fontWithName: @"Helvetica" size: 16]];
-        [_txtLabel setBackgroundColor:[UIColor clearColor]];
-        
-        [_txtLabel setTextColor:[UIColor whiteColor]];
-        
-        _txtLabel.layer.shadowOffset =CGSizeMake(0, -0.5);
-        _txtLabel.layer.shadowColor = [UIColor blackColor].CGColor;
-        _txtLabel.layer.shadowOpacity = 1.0;
-        _txtLabel.layer.shadowRadius = 1;
-
-        _txtLabel.layer.masksToBounds = NO;
-        
-        [self addSubview:_txtLabel];
-        
-        self.title= title;
-
-
-        
-        [[[[UIApplication sharedApplication] delegate] window] addSubview:self];
-    }
-    
-    return self;
+@implementation JSNotifier {
 }
 
++ (JSNotifier*)sharedView {
+    static dispatch_once_t once;
+    static JSNotifier *sharedView;
+    dispatch_once(&once, ^ { sharedView = [[JSNotifier alloc] initWithFrame:[[UIScreen mainScreen] bounds]]; });
+    return sharedView;
+}
 
-- (void)setAccessoryView:(UIView *)__accessoryView{
-        
-    [[self viewWithTag:1]removeFromSuperview];
+- (void) initializeWithType:(JSNotifierShowType) type title:(NSString*) title mode:(JSNotifierShowMode) mode position:(JSNotifierPosition) position
+{
+    self.mode = mode;
+    self.position = position;
     
-    __accessoryView.tag = 1;
-    [__accessoryView setFrame:CGRectMake(12, ((self.frame.size.height -__accessoryView.frame.size.height)/2)+1, __accessoryView.frame.size.width, __accessoryView.frame.size.height)];
+    if (self.position == JSNotifierPositionBottom)
+    {
+        CGFloat y = self.mode == JSNotifierShowModeSlide ? [UIScreen mainScreen].bounds.size.height : [UIScreen mainScreen].bounds.size.height - 40;
+        self.frame = CGRectMake(0, y, [UIScreen mainScreen].bounds.size.width, 40);
+    }
+    else
+    {
+        // Calculo el alto en función del statusbar y del navigationBar
+        CGFloat statusBarHeight = [UIApplication sharedApplication].statusBarFrame.size.height;
+        id nav = [UIApplication sharedApplication].keyWindow.rootViewController;
+        CGFloat navigationBarHeight = 0;
+        if ([nav isKindOfClass:[UINavigationController class]]) {
+            UINavigationController *navc = (UINavigationController *) nav;
+            if(!navc.navigationBarHidden) {
+                navigationBarHeight = navc.navigationBar.frame.size.height;
+            }
+        }
+        CGFloat y = self.mode == JSNotifierShowModeSlide ? statusBarHeight + navigationBarHeight - 36 : statusBarHeight + navigationBarHeight - 4;
+        self.frame = CGRectMake(0, y, [UIScreen mainScreen].bounds.size.width, 40);
+    }
     
-    [self addSubview:__accessoryView];
+    [_accessoryView removeFromSuperview];
+    [_txtLabel removeFromSuperview];
     
-    if (__accessoryView)
+    self.backgroundColor = [UIColor clearColor];
+    
+    // Etiqueta
+    _txtLabel = [[UILabel alloc]initWithFrame:CGRectMake(8, 12, self.frame.size.width - 0, 20)];
+    [_txtLabel setFont:[UIFont fontWithName: @"Helvetica" size: 16]];
+    [_txtLabel setBackgroundColor:[UIColor clearColor]];
+    [_txtLabel setNumberOfLines:2];
+    [_txtLabel setTextColor:[UIColor whiteColor]];
+    
+    _txtLabel.layer.shadowOffset =CGSizeMake(0, -0.5);
+    _txtLabel.layer.shadowColor = [UIColor blackColor].CGColor;
+    _txtLabel.layer.shadowOpacity = 1.0;
+    _txtLabel.layer.shadowRadius = 1;
+    
+    _txtLabel.layer.masksToBounds = NO;
+    
+    self.title = title;
+    
+    [self addSubview:_txtLabel];
+    
+    // Imagen
+    if (type == JSNotifierShowTypeSuccess)
+    {
+        _accessoryView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"NotifyCheck"]];
+    }
+    else
+    {
+        _accessoryView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"NotifyX"]];
+    }
+    [_accessoryView setFrame:CGRectMake(12, ((self.frame.size.height -_accessoryView.frame.size.height)/2)+1, _accessoryView.frame.size.width, _accessoryView.frame.size.height)];
+    
+    [self addSubview:_accessoryView];
+    
+    // Adaptar tamaño etiqueta
+    if (_accessoryView)
         [_txtLabel setFrame:CGRectMake(38, 12, self.frame.size.width - 38, 20)];
     else
         [_txtLabel setFrame:CGRectMake(8, 12, self.frame.size.width - 8, 20)];
+    
+    [[[[UIApplication sharedApplication] delegate] window] addSubview:self];
+    
 }
 
 - (void)setTitle:(NSString *)title{
@@ -73,14 +104,49 @@ limitations under the License.
     [_txtLabel setText:title];
 }
 
-- (void)show{
++ (void)showSuccessWithTitle:(NSString*) title mode:(JSNotifierShowMode) mode position:(JSNotifierPosition) position forTime:(float) time
+{
+    JSNotifier* sharedView = [JSNotifier sharedView];
+    
+    [sharedView initializeWithType:JSNotifierShowTypeSuccess title:title mode:mode position:position];
+    
+    [[[[UIApplication sharedApplication] delegate] window] addSubview:sharedView];
+    
+    [sharedView showFor:time];
+}
+
++ (void)showErrorWithTitle:(NSString*) title mode:(JSNotifierShowMode) mode position:(JSNotifierPosition) position forTime:(float) time
+{
+    JSNotifier* sharedView = [JSNotifier sharedView];
+    
+    [sharedView initializeWithType:JSNotifierShowTypeError title:title mode:mode position:position];
+    
+    [sharedView showFor:time];
+}
+
+
+- (void)show {
     
     [UIView beginAnimations:nil context:nil];
     [UIView setAnimationDuration:0.3f];
     
-    CGRect move = self.frame;
-    move.origin.y -=40.f;
-    self.frame = move;
+    if (self.mode == JSNotifierShowModeFade)
+    {
+        self.alpha = 1;
+    }
+    else
+    {
+        CGRect move = self.frame;
+        if (self.position == JSNotifierPositionBottom)
+        {
+            move.origin.y -= 40.f;
+        }
+        else
+        {
+            move.origin.y += 34.f;
+        }
+        self.frame = move;
+    }
     
     [UIView commitAnimations];
       
@@ -91,9 +157,23 @@ limitations under the License.
     [UIView beginAnimations:nil context:nil];
     [UIView setAnimationDuration:0.3f];
     
-    CGRect move = self.frame;
-    move.origin.y -=40.f;
-    self.frame = move;
+    if (self.mode == JSNotifierShowModeFade)
+    {
+        self.alpha = 1;
+    }
+    else
+    {
+        CGRect move = self.frame;
+        if (self.position == JSNotifierPositionBottom)
+        {
+            move.origin.y -= 40.f;
+        }
+        else
+        {
+            move.origin.y += 34.f;
+        }
+        self.frame = move;
+    }
     
     [UIView commitAnimations];
     
@@ -109,11 +189,23 @@ limitations under the License.
         [UIView setAnimationDelegate: self]; //or some other object that has necessary method
         [UIView setAnimationDidStopSelector: @selector(removeFromSuperview)];
         
-        
-        CGRect move = self.frame;
-        move.origin.y +=40.f;
-        self.frame = move;
-        
+        if (self.mode == JSNotifierShowModeFade)
+        {
+            self.alpha = 0;
+        }
+        else
+        {
+            CGRect move = self.frame;
+            if (self.position == JSNotifierPositionBottom)
+            {
+                move.origin.y += 40.f;
+            }
+            else
+            {
+                move.origin.y -= 34.f;
+            }
+            self.frame = move;
+        }
         [UIView commitAnimations];
     });
 
@@ -125,95 +217,26 @@ limitations under the License.
     [UIView setAnimationDuration:0.3f];
     [UIView setAnimationDelegate: self]; //or some other object that has necessary method
     [UIView setAnimationDidStopSelector: @selector(removeFromSuperview)];
-        
-        
-    CGRect move = self.frame;
-    move.origin.y +=40.f;
-    self.frame = move;
-        
-    [UIView commitAnimations];
-}
 
-
-- (void)setAccessoryView:(UIView *)view animated:(BOOL)animated{
-
-    if (!animated){
-    [[self viewWithTag:1]removeFromSuperview];
-    view.tag = 1;
+    if (self.mode == JSNotifierShowModeFade)
+    {
+        self.alpha = 0;
     }
-    
-    [view setFrame:CGRectMake(12, ((self.frame.size.height -view.frame.size.height)/2)+1, view.frame.size.width, view.frame.size.height)];
-    [self addSubview:view];
-    
-    if (animated) {
-        view.alpha = 0.0;
-        
-        if ([self viewWithTag:1])
-            view.tag = 0;
-        else
-            view.tag = 2;
-    [UIView animateWithDuration:0.5
-                     animations:^{
-                         if ([self viewWithTag:1])
-                            [self viewWithTag:1].alpha = 0.0;
-                         else
-                             view.alpha = 1.0;
-                     }
-                     completion:^(BOOL finished){
-                         
-                         [[self viewWithTag:1]removeFromSuperview];
-                         
-                         [UIView animateWithDuration:0.5
-                                          animations:^{
-                                              view.alpha = 1.0;
-                                              
-                                          }
-                                          completion:^(BOOL finished){
-                                              
-                                              view.tag = 1;
-                                          }];
-                         
-                     }];
-    }
-    
-    if (view)
-        [_txtLabel setFrame:CGRectMake(38, 12, self.frame.size.width - 38, 20)];
     else
-        [_txtLabel setFrame:CGRectMake(8, 12, self.frame.size.width - 8, 20)];
-
-
-
-}
-
-- (void)setTitle:(id)title animated:(BOOL)animated{
+    {
+        CGRect move = self.frame;
+        if (self.position == JSNotifierPositionBottom)
+        {
+            move.origin.y += 40.f;
+        }
+        else
+        {
+            move.origin.y -= 34.f;
+        }
+        self.frame = move;
+    }
     
-    float duration = 0.0;
-    
-    if (animated)
-        duration = 0.5;
-    
-    [UIView animateWithDuration:duration
-                     animations:^{
-                      
-                         _txtLabel.alpha = 0.0f;
-                             
-                     }
-                     completion:^(BOOL finished){
-                         
-                         _txtLabel.text = title;
-                         
-                         [UIView animateWithDuration:duration
-                                          animations:^{
-                                              _txtLabel.alpha = 1.0f;
-
-                                              
-                                          }
-                                          completion:^(BOOL finished){
-                                              
-                                          }];
-                         
-                     }];
-
+    [UIView commitAnimations];
 }
 
 - (void)drawRect:(CGRect)rect{
